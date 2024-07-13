@@ -1,0 +1,83 @@
+
+resource "aws_instance" "prometheus-server" {
+  ami           = "ami-0557a15b87f6559cf"
+  instance_type = "t2.micro"
+  tags = {
+    Name = "prometheus-server"
+  }
+  key_name = "ssh_key"
+  connection {
+    type        = "ssh"
+    user        = "ubuntu"
+    host        = self.public_ip
+    private_key = var.ssh_key
+  }
+  vpc_security_group_ids = [aws_security_group.prometheus_sg.id]
+
+  provisioner "file" {
+    source      = "./prometheus.yml"
+    destination = "/home/ubuntu/prometheus.yml"
+  }
+  provisioner "file" {
+    source      = "./prometheus.service"
+    destination = "/home/ubuntu/prometheus.service"
+  }
+  provisioner "file" {
+    source      = "./node_exporter.service"
+    destination = "/home/ubuntu/node_exporter.service"
+  }
+  provisioner "remote-exec" {
+    inline = [
+      "sudo useradd --no-create-home --shell /bin/false prometheus",
+      "sudo mkdir /etc/prometheus",
+      "sudo mkdir /var/lib/prometheus",
+      "sudo chown -R prometheus. /etc/prometheus",
+      "sudo chown -R prometheus. /var/lib/prometheus",
+      "sudo apt-get update && sudo apt-get install wget -y",
+      "wget https://github.com/prometheus/prometheus/releases/download/v2.42.0/prometheus-2.42.0.linux-amd64.tar.gz",
+      "tar xvzf prometheus-2.42.0.linux-amd64.tar.gz",
+      "sudo cp prometheus-2.42.0.linux-amd64/prometheus /usr/local/bin/",
+      "sudo cp prometheus-2.42.0.linux-amd64/promtool /usr/local/bin/",
+      "sudo chown prometheus. /usr/local/bin/prometheus",
+      "sudo chown prometheus. /usr/local/bin/promtool",
+      "sudo cp -r prometheus-2.42.0.linux-amd64/consoles /etc/prometheus",
+      "sudo cp -r prometheus-2.42.0.linux-amd64/console_libraries /etc/prometheus",
+      "rm -rf prometheus-2.42.0.linux-amd64.tar.gz prometheus-2.42.0.linux-amd64",
+      "sudo cp /home/ubuntu/prometheus.yml /etc/prometheus/prometheus.yml",
+      "sudo cp /home/ubuntu/prometheus.service /etc/systemd/system/prometheus.service",
+      "sudo systemctl daemon-reload",
+      "sudo systemctl start prometheus",
+    ]
+  }
+  # netdata provisioner
+  provisioner "remote-exec" {
+    inline = [
+      "wget -O /tmp/netdata-kickstart.sh https://my-netdata.io/kickstart.sh && bash /tmp/netdata-kickstart.sh --dont-wait",
+      "sudo mkdir -p /etc/netdata/exporters",
+      "sudo tee /etc/netdata/exporters/prometheus.conf >/dev/null <<'EOF'",
+      "{",
+      "  \"prometheus\": {",
+      "    \"enabled\": true,",
+      "    \"destination\": \"prometheus:9090\"",
+      "  }",
+      "}",
+      "EOF",
+      "sudo systemctl start netdata",
+      "sudo rm -rf /tmp/netdata-kickstart*",
+    ]
+  }
+  # node_exporter provisioner
+  provisioner "remote-exec" {
+    inline = [
+      "sudo apt-get install -y wget",
+      "wget https://github.com/prometheus/node_exporter/releases/download/v1.5.0/node_exporter-1.5.0.linux-amd64.tar.gz",
+      "tar -xvf node_exporter-1.5.0.linux-amd64.tar.gz",
+      "sudo cp node_exporter-1.5.0.linux-amd64/node_exporter /usr/local/bin/",
+      "sudo useradd --no-create-home --shell /bin/false node_exporter",
+      "sudo chown node_exporter:node_exporter /usr/local/bin/node_exporter",
+      "sudo cp /home/ubuntu/node_exporter.service /etc/systemd/system/node_exporter.service",
+      "sudo systemctl daemon-reload",
+      "sudo systemctl start node_exporter",
+    ]
+  }
+}  
