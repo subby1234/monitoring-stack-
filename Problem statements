@@ -1,1 +1,22 @@
+Introduction to Atlassian (Jira, Confluence, Slack, Bitbucket) carried out by the team of 5; break down in the Projects below:
+(How to create and manage tickets on the Jira board. How to link projects between the Jira Board, Gitlab and slack. How to use Atlassian Confluence.
+How to use slack.Understading Bitbucket.)
 
+: Installation of monitoring stacks. As a site reliability engineer, I want to create a monitoring stack to monitor and debug the infrastructure.
+
+Story:
+
+Build a monitoring stack to monitor 3 EC2 instances in 3 different AZs using Netdata, Prometheus and Grafana.
+
+
+
+:Update Grafana dashboard with prometheus source, and show metrics from various ec2-instances.
+:Install Netdata and node-exporter on all monitoring servers (Prometheus and Grafana)
+
+
+:Create an IAM policy to allow access to EC2 instances for all team members.
+
+:Host a static website using s3 bucket
+
+
+:Set up session manager for all EC2 instances.
