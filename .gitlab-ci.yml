@@ -1,0 +1,91 @@
+image:
+  name: hashicorp/terraform:latest
+  entrypoint:
+    - "/usr/bin/env"
+    - 'PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin'
+
+variables:
+  PLAN: plan.tfplan
+  JSON_PLAN_FILE: tfplan.json
+  TF_IN_AUTOMATION: "true"
+  GITLAB_TF_ADDRESS: ${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/terraform/state/${CI_PROJECT_NAME}
+
+cache:
+  key: "$CI_COMMIT_SHA"
+  paths:
+    - .terraform
+
+.terraform-ver-init: &terraform-ver-init
+  - terraform -version
+  - terraform init -reconfigure -backend-config="address=${GITLAB_TF_ADDRESS}" -backend-config="lock_address=${GITLAB_TF_ADDRESS}/lock" -backend-config="unlock_address=${GITLAB_TF_ADDRESS}/lock" -backend-config="username=gitlab-ci-token" -backend-config="password=${CI_JOB_TOKEN}" -backend-config="lock_method=POST" -backend-config="unlock_method=DELETE" -backend-config="retry_wait_min=5"
+
+stages:
+  - validate
+  - plan
+  - deploy
+  - build-website
+
+validate-format:
+  stage: validate
+  before_script:
+    - *terraform-ver-init
+  environment:
+    name: stage
+  script:
+    - terraform validate
+    - terraform fmt -list=true -write=false -diff=true -check=true -recursive
+  #only:
+    #changes:
+      #- "*.tf"
+      #- "**/*.tf"
+
+terraform-plan:
+  stage: plan
+  before_script:
+    - *terraform-ver-init
+  environment:
+    name: stage
+  script:
+    - apk add --update jq
+    - alias convert_report="jq -r '([.resource_changes[].change.actions?]|flatten)|{\"create\":(map(select(.==\"create\"))|length),\"update\":(map(select(.==\"update\"))|length),\"delete\":(map(select(.==\"delete\"))|length)}'"
+    - terraform plan -out=$PLAN
+    - "terraform show --json $PLAN | convert_report > $JSON_PLAN_FILE"
+  artifacts:
+    name: plan
+    paths:
+      - $PLAN
+    reports:
+      terraform: $JSON_PLAN_FILE
+    expire_in: 30 days
+  #only:
+     #- merge_request
+
+
+# Separate apply job for manual launching Terraform as it can be destructive action
+apply:
+  stage: deploy
+  before_script:
+    - *terraform-ver-init
+  environment:
+    name: production
+  script:
+    - terraform apply -input=false -auto-approve
+  dependencies:
+    - terraform-plan
+  when: manual
+  # only:
+  #  - main
+
+build-website:
+  stage: build-website
+  environment:
+    name: production
+  script:
+    - apk add --no-cache aws-cli
+    - aws s3 sync ./lacardia-website s3://lacardia.com --acl public-read --delete
+  artifacts:
+    paths: 
+      - lacardia-website/
+  dependencies:
+    - terraform-plan
+  when: manual
