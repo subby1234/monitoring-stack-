@@ -83,5 +83,3 @@ resource "aws_security_group" "ec2_ssh" {
     cidr_blocks = ["0.0.0.0/0"]
   }
 }
-
-
