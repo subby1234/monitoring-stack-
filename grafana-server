@@ -15,53 +15,16 @@ resource "aws_instance" "grafana-server" {
   vpc_security_group_ids = [
     aws_security_group.grafana_sg.id
   ]
-    provisioner "file" {
-    source      = "./prometheus.yml"
-    destination = "/home/ubuntu/prometheus.yml"
-  }
-  provisioner "file" {
-    source      = "./node_exporter.service"
-    destination = "/home/ubuntu/node_exporter.service"
-  }
   provisioner "remote-exec" {
     inline = [
-      "sudo apt-get install -y apt-transport-https libfontconfig1 software-properties-common wget",
+      "sudo apt-get install -y apt-transport-https",
+      "sudo apt-get install -y software-properties-common wget",
       "sudo wget -q -O /usr/share/keyrings/grafana.key https://apt.grafana.com/gpg.key",
       "echo 'deb [signed-by=/usr/share/keyrings/grafana.key] https://apt.grafana.com stable main' | sudo tee -a /etc/apt/sources.list.d/grafana.list",
       "sudo apt-get update -y",
       "sudo apt-get install grafana -y ",
       "sudo systemctl daemon-reload",
       "sudo systemctl start grafana-server",
-    ]
-  }
-  provisioner "remote-exec" {
-    inline = [
-      "wget -O /tmp/netdata-kickstart.sh https://my-netdata.io/kickstart.sh && bash /tmp/netdata-kickstart.sh --dont-wait",
-      "sudo mkdir -p /etc/netdata/exporters",
-      "sudo tee /etc/netdata/exporters/prometheus.conf >/dev/null <<'EOF'",
-      "{",
-      "  \"prometheus\": {",
-      "    \"enabled\": true,",
-      "    \"destination\": \"prometheus:9090\"",
-      "  }",
-      "}",
-      "EOF",
-      "sudo systemctl start netdata",
-      "sudo rm -rf /tmp/netdata-kickstart*",
-    ]
-  }
-  # node_exporter provisioner
-  provisioner "remote-exec" {
-    inline = [
-      "sudo apt-get install -y wget",
-      "wget https://github.com/prometheus/node_exporter/releases/download/v1.5.0/node_exporter-1.5.0.linux-amd64.tar.gz",
-      "tar -xvf node_exporter-1.5.0.linux-amd64.tar.gz",
-      "sudo cp node_exporter-1.5.0.linux-amd64/node_exporter /usr/local/bin/",
-      "sudo useradd --no-create-home --shell /bin/false node_exporter",
-      "sudo chown node_exporter:node_exporter /usr/local/bin/node_exporter",
-      "sudo cp /home/ubuntu/node_exporter.service /etc/systemd/system/node_exporter.service",
-      "sudo systemctl daemon-reload",
-      "sudo systemctl start node_exporter",
     ]
   }
 }
