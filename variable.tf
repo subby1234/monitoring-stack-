@@ -16,6 +16,6 @@ variable "ssh_key" {
 }
 
 variable "bucket_name" {
-  default = "lcd-wedsite"
+  default = "lacardia.com"
   type    = string
 }
