@@ -19,6 +19,7 @@ resource "aws_iam_policy" "userpasschange" {
 }
 EOF
 }
+
 resource "aws_iam_policy" "userenableMFADevice" {
   name        = "userenableMFADevice"
   description = "Policy to enable MFA device"
@@ -71,6 +72,7 @@ resource "aws_iam_policy" "userenableMFADevice" {
 }
 EOF
 }
+
 resource "aws_iam_policy" "userAllowAllEC2Actions" {
   name        = "userAllowAllEC2Actions"
   description = "Policy to allow all EC2 actions"
@@ -116,6 +118,7 @@ resource "aws_iam_policy" "userAllowAllEC2Actions" {
 }
 EOF
 }
+
 resource "aws_iam_policy" "userReadOnlyS3Actions" {
   name        = "userReadOnlyS3Actions"
   description = "Policy to allow read-only S3 actions"
